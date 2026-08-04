@@ -3,54 +3,55 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-// Define o formato dos dados do aluno que vêm do banco
 type Aluno = {
   id: string
   nome: string
   turma: string
 }
 
+// Define os modos de operação da tela
+type ModoTela = 'atraso' | 'saida'
+
 export default function Home() {
-  // Variáveis de estado para gerenciar o fluxo da tela
+  // Estado para controlar a aba atual (Atraso ou Saída)
+  const [modo, setModo] = useState<ModoTela>('atraso')
+
   const [turmasDisponiveis, setTurmasDisponiveis] = useState<string[]>([])
   const [turmaSelecionada, setTurmaSelecionada] = useState<string | null>(null)
   
   const [alunosDaTurma, setAlunosDaTurma] = useState<Aluno[]>([])
   const [buscaNome, setBuscaNome] = useState('')
   
+  // Estados novos para o fluxo de Saída Antecipada
+  const [alunoSelecionadoParaSaida, setAlunoSelecionadoParaSaida] = useState<Aluno | null>(null)
+  const [nomeResponsavel, setNomeResponsavel] = useState('')
+  const [documentoResponsavel, setDocumentoResponsavel] = useState('')
+  
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
 
-  // 1. Carrega as turmas disponíveis assim que o aplicativo abre
+  // 1. Carrega as turmas no início
   useEffect(() => {
     async function carregarTurmas() {
-      // Busca apenas a coluna de turmas no banco de dados
-      const { data, error } = await supabase
-        .from('alunos')
-        .select('turma')
-      
+      const { data, error } = await supabase.from('alunos').select('turma')
       if (error) {
         console.error("Erro ao buscar turmas:", error)
         setCarregando(false)
         return
       }
-
-      // Filtra para não repetir nomes de turmas e organiza em ordem alfabética
       if (data) {
         const turmasUnicas = Array.from(new Set(data.map(a => a.turma))).sort()
         setTurmasDisponiveis(turmasUnicas)
       }
       setCarregando(false)
     }
-
     carregarTurmas()
   }, [])
 
-  // 2. Carrega os alunos quando a funcionária clica em uma turma específica
+  // 2. Carrega os alunos da turma selecionada
   useEffect(() => {
     async function carregarAlunosDaTurma() {
       if (!turmaSelecionada) return
-      
       setCarregando(true)
       const { data, error } = await supabase
         .from('alunos')
@@ -58,75 +59,111 @@ export default function Home() {
         .eq('turma', turmaSelecionada)
         .order('nome')
 
-      if (error) {
-        console.error("Erro ao buscar alunos:", error)
-      } else if (data) {
-        setAlunosDaTurma(data)
-      }
+      if (error) console.error("Erro ao buscar alunos:", error)
+      else if (data) setAlunosDaTurma(data)
       setCarregando(false)
     }
-
     carregarAlunosDaTurma()
   }, [turmaSelecionada])
 
-  // 3. Registra o atraso no banco de dados
-  const registrarAtraso = async (aluno: Aluno) => {
-    // Mostra a tela verde de sucesso imediatamente (para agilidade)
-    setMensagemSucesso(`${aluno.nome} registrado!`)
-    
-    // Salva a informação de fato no Supabase
-    const { error } = await supabase
-      .from('atrasos')
-      .insert([{ aluno_id: aluno.id }])
+  // Função que muda a aba e limpa a tela
+  const alternarModo = (novoModo: ModoTela) => {
+    setModo(novoModo)
+    setTurmaSelecionada(null)
+    setBuscaNome('')
+    setAlunoSelecionadoParaSaida(null)
+    setNomeResponsavel('')
+    setDocumentoResponsavel('')
+  }
 
-    if (error) {
-      console.error("Erro ao registrar atraso:", error)
-      setMensagemSucesso(`Erro ao registrar ${aluno.nome}. Tente novamente.`)
+  // 3. Registra Atraso (Fluxo Rápido)
+  const registrarAtraso = async (aluno: Aluno) => {
+    setMensagemSucesso(`${aluno.nome} atrasado!`)
+    const { error } = await supabase.from('atrasos').insert([{ aluno_id: aluno.id }])
+    
+    if (error) setMensagemSucesso(`Erro. Tente novamente.`)
+    else setTimeout(resetarFluxo, 1500)
+  }
+
+  // 4. Registra Saída (Fluxo com Formulário)
+  const registrarSaida = async () => {
+    if (!alunoSelecionadoParaSaida || !nomeResponsavel || !documentoResponsavel) {
+      alert("Por favor, preencha o nome e o documento do responsável.")
       return
     }
 
-    // Aguarda 1.5 segundos e limpa a tela para o próximo aluno da fila
-    setTimeout(() => {
-      setMensagemSucesso(null)
-      setBuscaNome('')
-      setTurmaSelecionada(null)
-    }, 1500)
+    setMensagemSucesso(`Saída de ${alunoSelecionadoParaSaida.nome} registrada!`)
+    
+    const { error } = await supabase.from('saidas').insert([{ 
+      aluno_id: alunoSelecionadoParaSaida.id,
+      nome_responsavel: nomeResponsavel,
+      documento_responsavel: documentoResponsavel
+    }])
+    
+    if (error) setMensagemSucesso(`Erro. Tente novamente.`)
+    else setTimeout(resetarFluxo, 1500)
   }
 
-  // Filtra a lista de alunos conforme a funcionária digita no campo de busca
+  // Limpa tudo após o sucesso
+  const resetarFluxo = () => {
+    setMensagemSucesso(null)
+    setBuscaNome('')
+    setTurmaSelecionada(null)
+    setAlunoSelecionadoParaSaida(null)
+    setNomeResponsavel('')
+    setDocumentoResponsavel('')
+  }
+
   const alunosFiltrados = alunosDaTurma.filter(aluno => 
     aluno.nome.toLowerCase().includes(buscaNome.toLowerCase())
   )
 
-  // --- LÓGICA DE RENDERIZAÇÃO (O QUE APARECE NA TELA) ---
-
   if (carregando && turmasDisponiveis.length === 0) {
-    return <div className="flex h-screen items-center justify-center p-4 text-xl text-slate-800">Carregando sistema...</div>
+    return <div className="flex h-screen items-center justify-center p-4 text-xl text-slate-800 font-bold">Carregando sistema...</div>
   }
 
   return (
     <main className="flex min-h-screen flex-col items-center p-4 bg-slate-100">
-      
-      <div className="w-full max-w-md flex flex-col gap-6 pt-8">
-        <h1 className="text-3xl font-black text-center text-slate-900">AtrasoZero</h1>
+      <div className="w-full max-w-md flex flex-col gap-6 pt-6">
+        <h1 className="text-3xl font-black text-center text-slate-900 tracking-tight">Controle de Portaria</h1>
 
-        {/* MENSAGEM DE SUCESSO VERDE (TELA CHEIA) */}
+        {/* MENSAGEM DE SUCESSO VERDE TELA CHEIA */}
         {mensagemSucesso && (
           <div className="absolute top-0 left-0 w-full h-full bg-green-600 z-50 flex items-center justify-center p-4">
              <p className="text-white text-4xl font-black text-center">{mensagemSucesso}</p>
           </div>
         )}
 
-        {/* PASSO 1: SELECIONAR A TURMA */}
+        {/* SELETOR DE ABAS (ATRASO / SAÍDA) */}
+        {!mensagemSucesso && (
+          <div className="flex bg-slate-200 p-1 rounded-xl shadow-inner">
+            <button
+              onClick={() => alternarModo('atraso')}
+              className={`flex-1 py-3 text-lg font-bold rounded-lg transition-all ${modo === 'atraso' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
+            >
+              Registrar Atraso
+            </button>
+            <button
+              onClick={() => alternarModo('saida')}
+              className={`flex-1 py-3 text-lg font-bold rounded-lg transition-all ${modo === 'saida' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500'}`}
+            >
+              Saída de Aluno
+            </button>
+          </div>
+        )}
+
+        {/* PASSO 1: SELECIONAR TURMA */}
         {!turmaSelecionada && !mensagemSucesso && (
-          <div className="flex flex-col gap-4">
-            <h2 className="text-xl font-bold text-center text-slate-800 mb-2">1. Selecione a Turma</h2>
+          <div className="flex flex-col gap-4 mt-2">
+            <h2 className="text-xl font-bold text-center text-slate-800">
+              {modo === 'atraso' ? '1. Turma do Atraso' : '1. Turma da Saída'}
+            </h2>
             <div className="grid grid-cols-2 gap-4">
               {turmasDisponiveis.map(turma => (
                 <button
                   key={turma}
                   onClick={() => setTurmaSelecionada(turma)}
-                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-2xl font-bold py-8 rounded-xl shadow-md transition-colors"
+                  className={`text-white text-2xl font-bold py-8 rounded-xl shadow-md transition-colors ${modo === 'atraso' ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800' : 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800'}`}
                 >
                   {turma}
                 </button>
@@ -135,53 +172,95 @@ export default function Home() {
           </div>
         )}
 
-        {/* PASSO 2: SELECIONAR OU BUSCAR O ALUNO */}
-        {turmaSelecionada && !mensagemSucesso && (
+        {/* PASSO 2: SELECIONAR ALUNO (Se não houver formulário aberto) */}
+        {turmaSelecionada && !alunoSelecionadoParaSaida && !mensagemSucesso && (
           <div className="flex flex-col gap-4 grow">
-             <div className="flex items-center justify-between mb-2">
+             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-800">
-                  Turma: <span className="text-blue-700">{turmaSelecionada}</span>
+                  Turma: <span className={modo === 'atraso' ? 'text-blue-700' : 'text-purple-700'}>{turmaSelecionada}</span>
                 </h2>
                 <button 
-                  onClick={() => {
-                    setTurmaSelecionada(null)
-                    setBuscaNome('')
-                  }}
+                  onClick={() => { setTurmaSelecionada(null); setBuscaNome(''); }}
                   className="text-slate-700 font-bold underline py-2 px-4 active:text-blue-600"
                 >
-                  Voltar
+                  Trocar Turma
                 </button>
              </div>
 
-            {/* Campo de busca (Opcional, útil para turmas muito grandes) */}
             <input
               type="text"
-              placeholder="Digite o nome (opcional)..."
+              placeholder="Pesquisar nome..."
               value={buscaNome}
               onChange={(e) => setBuscaNome(e.target.value)}
-              className="w-full text-xl font-medium text-slate-900 bg-white placeholder-slate-500 p-4 border-2 border-slate-400 rounded-xl focus:border-blue-600 focus:outline-none shadow-sm"
-              autoFocus // Tenta abrir o teclado automaticamente
+              className="w-full text-xl font-medium text-slate-900 bg-white placeholder-slate-500 p-4 border-2 border-slate-300 rounded-xl focus:outline-none focus:border-slate-800"
+              autoFocus
             />
 
-            <div className="flex flex-col gap-3 mt-4 overflow-y-auto pb-20">
+            <div className="flex flex-col gap-3 mt-2 overflow-y-auto pb-20">
               {carregando ? (
-                <p className="text-center text-slate-600 font-medium">Carregando alunos...</p>
+                <p className="text-center text-slate-600 font-medium">Buscando...</p>
               ) : alunosFiltrados.length > 0 ? (
                 alunosFiltrados.map(aluno => (
                   <button
                     key={aluno.id}
-                    onClick={() => registrarAtraso(aluno)}
-                    className="bg-white border-2 border-slate-300 active:border-green-600 active:bg-green-100 text-left text-xl font-semibold text-slate-900 p-5 rounded-xl shadow-sm transition-all"
+                    onClick={() => modo === 'atraso' ? registrarAtraso(aluno) : setAlunoSelecionadoParaSaida(aluno)}
+                    className="bg-white border-2 border-slate-300 text-left text-xl font-bold text-slate-900 p-5 rounded-xl shadow-sm transition-all active:border-slate-800 active:bg-slate-50"
                   >
                     {aluno.nome}
                   </button>
                 ))
               ) : (
-                <p className="text-center text-slate-600 font-medium">Nenhum aluno encontrado com &quot;{buscaNome}&quot;</p>
+                <p className="text-center text-slate-600 font-medium">Aluno não encontrado.</p>
               )}
             </div>
           </div>
         )}
+
+        {/* PASSO 3: FORMULÁRIO DE SAÍDA ANTECIPADA */}
+        {alunoSelecionadoParaSaida && !mensagemSucesso && (
+          <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <p className="text-sm font-bold text-purple-600 uppercase tracking-wide">Registrar Saída</p>
+                <h2 className="text-2xl font-black text-slate-900 leading-tight">{alunoSelecionadoParaSaida.nome}</h2>
+                <p className="text-slate-500 font-medium">{alunoSelecionadoParaSaida.turma}</p>
+              </div>
+              <button onClick={() => setAlunoSelecionadoParaSaida(null)} className="text-slate-500 underline font-bold">Voltar</button>
+            </div>
+
+            <div className="flex flex-col gap-4 mt-2">
+              <div>
+                <label className="block text-slate-700 font-bold mb-2">Nome de quem está retirando:</label>
+                <input 
+                  type="text" 
+                  value={nomeResponsavel}
+                  onChange={(e) => setNomeResponsavel(e.target.value)}
+                  placeholder="Ex: Maria Silva (Mãe)" 
+                  className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-purple-600 bg-slate-50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-2">Documento (RG ou CPF):</label>
+                <input 
+                  type="text" 
+                  value={documentoResponsavel}
+                  onChange={(e) => setDocumentoResponsavel(e.target.value)}
+                  placeholder="Ex: 12.345.678-9" 
+                  className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-purple-600 bg-slate-50"
+                />
+              </div>
+
+              <button 
+                onClick={registrarSaida}
+                className="w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-black text-xl py-5 rounded-xl shadow-md mt-4 transition-colors"
+              >
+                Confirmar Saída
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </main>
   )
