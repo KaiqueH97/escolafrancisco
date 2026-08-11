@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import Link from 'next/link' // <-- O componente de navegação rápida do Next.js
 
 type Aluno = {
   id: string
@@ -9,20 +10,16 @@ type Aluno = {
   turma: string
 }
 
-// Define os modos de operação da tela
 type ModoTela = 'atraso' | 'saida'
 
 export default function Home() {
-  // Estado para controlar a aba atual (Atraso ou Saída)
   const [modo, setModo] = useState<ModoTela>('atraso')
-
   const [turmasDisponiveis, setTurmasDisponiveis] = useState<string[]>([])
   const [turmaSelecionada, setTurmaSelecionada] = useState<string | null>(null)
   
   const [alunosDaTurma, setAlunosDaTurma] = useState<Aluno[]>([])
   const [buscaNome, setBuscaNome] = useState('')
   
-  // Estados novos para o fluxo de Saída Antecipada
   const [alunoSelecionadoParaSaida, setAlunoSelecionadoParaSaida] = useState<Aluno | null>(null)
   const [nomeResponsavel, setNomeResponsavel] = useState('')
   const [documentoResponsavel, setDocumentoResponsavel] = useState('')
@@ -30,7 +27,6 @@ export default function Home() {
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
 
-  // 1. Carrega as turmas no início
   useEffect(() => {
     async function carregarTurmas() {
       const { data, error } = await supabase.from('alunos').select('turma')
@@ -48,7 +44,6 @@ export default function Home() {
     carregarTurmas()
   }, [])
 
-  // 2. Carrega os alunos da turma selecionada
   useEffect(() => {
     async function carregarAlunosDaTurma() {
       if (!turmaSelecionada) return
@@ -66,7 +61,6 @@ export default function Home() {
     carregarAlunosDaTurma()
   }, [turmaSelecionada])
 
-  // Função que muda a aba e limpa a tela
   const alternarModo = (novoModo: ModoTela) => {
     setModo(novoModo)
     setTurmaSelecionada(null)
@@ -76,7 +70,6 @@ export default function Home() {
     setDocumentoResponsavel('')
   }
 
-  // 3. Registra Atraso (Fluxo Rápido)
   const registrarAtraso = async (aluno: Aluno) => {
     setMensagemSucesso(`${aluno.nome} atrasado!`)
     const { error } = await supabase.from('atrasos').insert([{ aluno_id: aluno.id }])
@@ -85,7 +78,6 @@ export default function Home() {
     else setTimeout(resetarFluxo, 1500)
   }
 
-  // 4. Registra Saída (Fluxo com Formulário)
   const registrarSaida = async () => {
     if (!alunoSelecionadoParaSaida || !nomeResponsavel || !documentoResponsavel) {
       alert("Por favor, preencha o nome e o documento do responsável.")
@@ -104,7 +96,6 @@ export default function Home() {
     else setTimeout(resetarFluxo, 1500)
   }
 
-  // Limpa tudo após o sucesso
   const resetarFluxo = () => {
     setMensagemSucesso(null)
     setBuscaNome('')
@@ -125,7 +116,17 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center p-4 bg-slate-100">
       <div className="w-full max-w-md flex flex-col gap-6 pt-6">
-        <h1 className="text-3xl font-black text-center text-slate-900 tracking-tight">Controle de Portaria</h1>
+        
+        {/* NOVO CABEÇALHO COM LINK PARA RELATÓRIOS */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Portaria</h1>
+          <Link 
+            href="/relatorios"
+            className="bg-slate-300 hover:bg-slate-400 active:bg-slate-500 text-slate-800 px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm flex items-center gap-2"
+          >
+            Relatórios
+          </Link>
+        </div>
 
         {/* MENSAGEM DE SUCESSO VERDE TELA CHEIA */}
         {mensagemSucesso && (
@@ -172,7 +173,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* PASSO 2: SELECIONAR ALUNO (Se não houver formulário aberto) */}
+        {/* PASSO 2: SELECIONAR ALUNO */}
         {turmaSelecionada && !alunoSelecionadoParaSaida && !mensagemSucesso && (
           <div className="flex flex-col gap-4 grow">
              <div className="flex items-center justify-between">
