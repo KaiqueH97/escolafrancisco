@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import Link from 'next/link' // <-- O componente de navegação rápida do Next.js
+import Link from 'next/link'
+import { useRouter } from 'next/navigation' // <-- Importamos o router para fazer o redirecionamento
 
 type Aluno = {
   id: string
@@ -13,6 +14,7 @@ type Aluno = {
 type ModoTela = 'atraso' | 'saida'
 
 export default function Home() {
+  const router = useRouter() // <-- Inicializamos o router
   const [modo, setModo] = useState<ModoTela>('atraso')
   const [turmasDisponiveis, setTurmasDisponiveis] = useState<string[]>([])
   const [turmaSelecionada, setTurmaSelecionada] = useState<string | null>(null)
@@ -105,6 +107,11 @@ export default function Home() {
     setDocumentoResponsavel('')
   }
 
+  const fazerLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   const alunosFiltrados = alunosDaTurma.filter(aluno => 
     aluno.nome.toLowerCase().includes(buscaNome.toLowerCase())
   )
@@ -117,25 +124,32 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center p-4 bg-slate-100">
       <div className="w-full max-w-md flex flex-col gap-6 pt-6">
         
-        {/* NOVO CABEÇALHO COM LINK PARA RELATÓRIOS */}
+        {/* CABEÇALHO ATUALIZADO COM OS DOIS BOTÕES */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Portaria</h1>
-          <Link 
-            href="/relatorios"
-            className="bg-slate-300 hover:bg-slate-400 active:bg-slate-500 text-slate-800 px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm flex items-center gap-2"
-          >
-            Relatórios
-          </Link>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Secretaria</h1>
+          <div className="flex items-center gap-2">
+            <Link 
+              href="/relatorios"
+              className="bg-slate-300 hover:bg-slate-400 active:bg-slate-500 text-slate-800 px-3 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm"
+            >
+              Relatórios
+            </Link>
+            <button 
+              onClick={fazerLogout}
+              className="bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-700 px-3 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm"
+            >
+              Sair
+            </button>
+          </div>
         </div>
 
-        {/* MENSAGEM DE SUCESSO VERDE TELA CHEIA */}
+        {/* O restante do código continua igual abaixo */}
         {mensagemSucesso && (
           <div className="absolute top-0 left-0 w-full h-full bg-green-600 z-50 flex items-center justify-center p-4">
              <p className="text-white text-4xl font-black text-center">{mensagemSucesso}</p>
           </div>
         )}
 
-        {/* SELETOR DE ABAS (ATRASO / SAÍDA) */}
         {!mensagemSucesso && (
           <div className="flex bg-slate-200 p-1 rounded-xl shadow-inner">
             <button
@@ -153,11 +167,10 @@ export default function Home() {
           </div>
         )}
 
-        {/* PASSO 1: SELECIONAR TURMA */}
         {!turmaSelecionada && !mensagemSucesso && (
           <div className="flex flex-col gap-4 mt-2">
             <h2 className="text-xl font-bold text-center text-slate-800">
-              {modo === 'atraso' ? '1. Turma do Atraso' : '1. Turma da Saída'}
+              {modo === 'atraso' ? 'Turmas' : 'Turmas'}
             </h2>
             <div className="grid grid-cols-2 gap-4">
               {turmasDisponiveis.map(turma => (
@@ -173,7 +186,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* PASSO 2: SELECIONAR ALUNO */}
         {turmaSelecionada && !alunoSelecionadoParaSaida && !mensagemSucesso && (
           <div className="flex flex-col gap-4 grow">
              <div className="flex items-center justify-between">
@@ -217,7 +229,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* PASSO 3: FORMULÁRIO DE SAÍDA ANTECIPADA */}
         {alunoSelecionadoParaSaida && !mensagemSucesso && (
           <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <div className="flex justify-between items-start mb-2">
