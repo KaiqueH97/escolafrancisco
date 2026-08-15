@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation' // <-- Importamos o router para fazer o redirecionamento
+import { useRouter } from 'next/navigation'
 
 type Aluno = {
   id: string
@@ -14,7 +14,7 @@ type Aluno = {
 type ModoTela = 'atraso' | 'saida'
 
 export default function Home() {
-  const router = useRouter() // <-- Inicializamos o router
+  const router = useRouter()
   const [modo, setModo] = useState<ModoTela>('atraso')
   const [turmasDisponiveis, setTurmasDisponiveis] = useState<string[]>([])
   const [turmaSelecionada, setTurmaSelecionada] = useState<string | null>(null)
@@ -73,8 +73,21 @@ export default function Home() {
   }
 
   const registrarAtraso = async (aluno: Aluno) => {
+    // 1. Descobre quem está logado antes de salvar
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      alert("Sessão expirada. Por favor, faça login novamente.")
+      router.push('/login')
+      return
+    }
+
     setMensagemSucesso(`${aluno.nome} atrasado!`)
-    const { error } = await supabase.from('atrasos').insert([{ aluno_id: aluno.id }])
+    
+    const { error } = await supabase.from('atrasos').insert([{ 
+      aluno_id: aluno.id,
+      usuario_id: user.id 
+    }])
     
     if (error) setMensagemSucesso(`Erro. Tente novamente.`)
     else setTimeout(resetarFluxo, 1500)
@@ -86,12 +99,22 @@ export default function Home() {
       return
     }
 
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      alert("Sessão expirada. Por favor, faça login novamente.")
+      router.push('/login')
+      return
+    }
+
     setMensagemSucesso(`Saída de ${alunoSelecionadoParaSaida.nome} registrada!`)
     
+    // 2. Envia o ID do usuário junto com os outros dados
     const { error } = await supabase.from('saidas').insert([{ 
       aluno_id: alunoSelecionadoParaSaida.id,
       nome_responsavel: nomeResponsavel,
-      documento_responsavel: documentoResponsavel
+      documento_responsavel: documentoResponsavel,
+      usuario_id: user.id
     }])
     
     if (error) setMensagemSucesso(`Erro. Tente novamente.`)
@@ -124,26 +147,24 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center p-4 bg-slate-100">
       <div className="w-full max-w-md flex flex-col gap-6 pt-6">
         
-        {/* CABEÇALHO ATUALIZADO COM OS DOIS BOTÕES */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Secretaria</h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Portaria</h1>
           <div className="flex items-center gap-2">
             <Link 
               href="/relatorios"
               className="bg-slate-300 hover:bg-slate-400 active:bg-slate-500 text-slate-800 px-3 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm"
             >
-              Relatórios
+              Relatórios 📊
             </Link>
             <button 
               onClick={fazerLogout}
               className="bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-700 px-3 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm"
             >
-              Sair
+              Sair 🚪
             </button>
           </div>
         </div>
 
-        {/* O restante do código continua igual abaixo */}
         {mensagemSucesso && (
           <div className="absolute top-0 left-0 w-full h-full bg-green-600 z-50 flex items-center justify-center p-4">
              <p className="text-white text-4xl font-black text-center">{mensagemSucesso}</p>
@@ -170,7 +191,7 @@ export default function Home() {
         {!turmaSelecionada && !mensagemSucesso && (
           <div className="flex flex-col gap-4 mt-2">
             <h2 className="text-xl font-bold text-center text-slate-800">
-              {modo === 'atraso' ? 'Turmas' : 'Turmas'}
+              {modo === 'atraso' ? '1. Turma do Atraso' : '1. Turma da Saída'}
             </h2>
             <div className="grid grid-cols-2 gap-4">
               {turmasDisponiveis.map(turma => (
