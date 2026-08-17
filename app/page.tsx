@@ -73,7 +73,6 @@ export default function Home() {
   }
 
   const registrarAtraso = async (aluno: Aluno) => {
-    // 1. Descobre quem está logado antes de salvar
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
@@ -109,7 +108,6 @@ export default function Home() {
 
     setMensagemSucesso(`Saída de ${alunoSelecionadoParaSaida.nome} registrada!`)
     
-    // 2. Envia o ID do usuário junto com os outros dados
     const { error } = await supabase.from('saidas').insert([{ 
       aluno_id: alunoSelecionadoParaSaida.id,
       nome_responsavel: nomeResponsavel,
@@ -147,20 +145,27 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center p-4 bg-slate-100">
       <div className="w-full max-w-md flex flex-col gap-6 pt-6">
         
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Portaria</h1>
-          <div className="flex items-center gap-2">
+        {/* CABEÇALHO ATUALIZADO COM O BOTÃO DE GESTÃO */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Secretaria</h1>
+          <div className="flex items-center flex-wrap gap-2">
+            <Link 
+              href="/admin"
+              className="bg-slate-300 hover:bg-slate-400 active:bg-slate-500 text-slate-800 px-3 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm"
+            >
+              Alunos
+            </Link>
             <Link 
               href="/relatorios"
               className="bg-slate-300 hover:bg-slate-400 active:bg-slate-500 text-slate-800 px-3 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm"
             >
-              Relatórios 📊
+              Relatórios
             </Link>
             <button 
               onClick={fazerLogout}
               className="bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-700 px-3 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm"
             >
-              Sair 🚪
+              Sair
             </button>
           </div>
         </div>
