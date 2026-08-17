@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AtrasoZero",
-  description: "Sistema de registro rápido de atrasos escolares",
+  title: "Escola Francisco",
+  description: "Ecossistema de gestão escolar e controle de secretaria",
   manifest: "/manifest.json",
 };
 
