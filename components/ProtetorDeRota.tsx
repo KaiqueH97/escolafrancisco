@@ -11,40 +11,35 @@ export default function ProtetorDeRota({ children }: { children: React.ReactNode
 
   useEffect(() => {
     const verificarSessao = async () => {
-      // Pergunta ao Supabase se tem alguém logado neste aparelho
       const { data: { session } } = await supabase.auth.getSession()
       
-      if (!session && pathname !== '/login') {
-        // Se NÃO tem ninguém logado e a pessoa NÃO está na tela de login, chuta ela pro login
+      if (!session && pathname !== '/login' && pathname !== '/cadastro') {
         router.push('/login')
-      } else if (session && pathname === '/login') {
-        // Se a pessoa JÁ ESTÁ logada e tenta abrir a tela de login, manda ela pra Portaria
+      } else if (session && (pathname === '/login' || pathname === '/cadastro')) {
         router.push('/')
       } else {
-        // Tudo certo, pode liberar a tela
         setCarregando(false)
       }
     }
 
     verificarSessao()
 
-    // Fica vigiando caso a pessoa clique em um botão de "Sair" depois
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         router.push('/login')
       }
     })
 
-    return () => subscription?.unsubscribe?.()
+    return () => subscription.unsubscribe()
   }, [pathname, router])
 
-  // Mostra uma tela de carregamento rápida enquanto o guarda verifica a identidade
   if (carregando) {
     return (
-      <div>Verificando segurança...</div>
+      <div className="flex h-screen items-center justify-center bg-slate-100">
+        <p className="text-slate-800 font-bold text-xl animate-pulse">Verificando segurança...</p>
+      </div>
     )
   }
 
-  // Se passou pela segurança, exibe a página que a pessoa pediu
   return <>{children}</>
 }

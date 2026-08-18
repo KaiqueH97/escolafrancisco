@@ -5,32 +5,48 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default function LoginPage() {
+export default function CadastroPage() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
+  const [confirmarSenha, setConfirmarSenha] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const [sucesso, setSucesso] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(false)
   
-  // Usamos o router para redirecionar a pessoa após o login dar certo
   const router = useRouter()
 
-  const fazerLogin = async (e: React.FormEvent) => {
-    e.preventDefault() // Evita que a página recarregue ao apertar Enter
+  const fazerCadastro = async (e: React.FormEvent) => {
+    e.preventDefault()
     setCarregando(true)
     setErro(null)
+    setSucesso(null)
 
-    // Tenta fazer o login no Supabase
-    const { error } = await supabase.auth.signInWithPassword({
+    if (senha !== confirmarSenha) {
+      setErro('As senhas digitadas não são iguais.')
+      setCarregando(false)
+      return
+    }
+
+    if (senha.length < 6) {
+      setErro('A senha deve ter no mínimo 6 caracteres.')
+      setCarregando(false)
+      return
+    }
+
+    const { error } = await supabase.auth.signUp({
       email: email,
       password: senha,
     })
 
     if (error) {
-      setErro('E-mail ou senha incorretos. Tente novamente.')
+      setErro(error.message)
       setCarregando(false)
     } else {
-      // Deu certo! Redireciona para a tela da Portaria (Home)
-      router.push('/')
+      setSucesso('Conta criada com sucesso! Redirecionando...')
+      // Aguarda 2 segundinhos para a pessoa ler a mensagem de sucesso
+      setTimeout(() => {
+        router.push('/')
+      }, 2000)
     }
   }
 
@@ -39,16 +55,21 @@ export default function LoginPage() {
       <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-md border border-slate-200">
         
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Acesso</h1>
-          <p className="text-slate-500 font-medium">Faça login para registrar portaria.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Nova Conta</h1>
+          <p className="text-slate-500 font-medium">Cadastre-se no Escola Francisco.</p>
         </div>
 
-        <form onSubmit={fazerLogin} className="flex flex-col gap-5">
+        <form onSubmit={fazerCadastro} className="flex flex-col gap-5">
           
-          {/* MENSAGEM DE ERRO (Só aparece se a senha estiver errada) */}
           {erro && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg font-medium text-center text-sm">
               {erro}
+            </div>
+          )}
+
+          {sucesso && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg font-medium text-center text-sm">
+              {sucesso}
             </div>
           )}
 
@@ -58,7 +79,7 @@ export default function LoginPage() {
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ex: manha@escola.com" 
+              placeholder="ex: secretaria@escola.com" 
               required
               className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600 bg-slate-50 transition-colors"
             />
@@ -70,7 +91,19 @@ export default function LoginPage() {
               type="password" 
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              placeholder="••••••••" 
+              placeholder="Mínimo 6 caracteres" 
+              required
+              className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600 bg-slate-50 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-700 font-bold mb-2">Confirmar Senha</label>
+            <input 
+              type="password" 
+              value={confirmarSenha}
+              onChange={(e) => setConfirmarSenha(e.target.value)}
+              placeholder="Repita sua senha" 
               required
               className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600 bg-slate-50 transition-colors"
             />
@@ -81,13 +114,13 @@ export default function LoginPage() {
             disabled={carregando}
             className="w-full bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white font-black text-xl py-4 rounded-xl shadow-md mt-2 transition-colors disabled:opacity-70"
           >
-            {carregando ? 'Entrando...' : 'Entrar no Sistema'}
+            {carregando ? 'Criando conta...' : 'Cadastrar'}
           </button>
-          
+
           <div className="text-center mt-4 border-t border-slate-100 pt-4">
-            <p className="text-slate-600">Ainda não tem acesso?</p>
-            <Link href="/cadastro" className="text-blue-600 font-bold hover:underline">
-              Criar uma conta
+            <p className="text-slate-600">Já tem uma conta?</p>
+            <Link href="/login" className="text-blue-600 font-bold hover:underline">
+              Voltar para o Login
             </Link>
           </div>
 
